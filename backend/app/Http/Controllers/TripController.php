@@ -2,75 +2,88 @@
 
 namespace App\Http\Controllers;
 
-use App\GeminiAIService;
+use App\Services\MistralAIService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Trip;
 
 class TripController extends Controller
 {
-    protected $geminiAIService;
+    protected $mistralAIService;
 
-    // Inject GeminiAIService
-    public function __construct(GeminiAIService $geminiAIService)
+    public function __construct(MistralAIService $mistralAIService)
     {
-        $this->middleware('auth:sanctum'); // Ensure authentication
-        $this->geminiAIService = $geminiAIService;
+        $this->middleware('auth:sanctum');
+        $this->mistralAIService = $mistralAIService;
     }
 
     /**
-     * Store a new trip
+     * Store a new trip request
      */
     public function store(Request $request)
     {
-        // Ensure user is authenticated
-        if (!auth()->user()) {
-            return response()->json(['error' => 'Unauthorized'], 401);
-        }
-
-        $validatedData = $request->validate([
-            'destination' => 'required|string',
-            'date_depart' => 'required|date',
-            'date_retour' => 'required|date|after:date_depart',
-            'budget' => 'required|numeric|min:0',
-            'type_voyage' => 'nullable|string',
-            'style_hebergement' => 'nullable|string',
-            'transport_prefere' => 'nullable|string',
-            'climat_souhaite' => 'nullable|string',
+        $validated = $request->validate([
+            'destination' => 'nullable|string',
+            'dates' => 'required|array',
+            'tripType' => 'required|string',
+            'withChildren' => 'nullable|string',
+            'budget' => 'required|string',
+            'interests' => 'required|array',
+            'climates' => 'required|array',
+            'accommodations' => 'required|array',
+            'transports' => 'required|array',
         ]);
 
-        // Create trip
-        $trip = Trip::create(array_merge($validatedData, [
-            'user_id' => auth()->id(), // Auto-fill user_id
-        ]));
-
-        return response()->json([
-            'message' => 'Trip created successfully',
-            'trip' => $trip
-        ], 201);
+        // You can save the data to DB here if needed
+        return response()->json(['message' => 'Data received', 'data' => $validated]);
     }
 
     /**
-     * Get AI-based activity recommendations
+     * Recommend activities using AI
      */
     public function recommendActivities(Request $request)
     {
         $validatedData = $request->validate([
             'destination' => 'required|string',
-            'budget' => 'required|numeric',
+            'duree' => 'required|integer|min:1',
+            'type_voyage' => 'nullable|string',
+            'budget' => 'required|numeric|min:0',
             'preferences' => 'nullable|array',
+            'climat' => 'nullable|string',
+            'style_hebergement' => 'nullable|string',
+            'transport_prefere' => 'nullable|string',
         ]);
 
-        // Fetch recommendations from Gemini AI service
-        $recommendations = $this->geminiAIService->getRecommendations(
-            $validatedData['destination'],
-            $validatedData['budget'],
-            $validatedData['preferences'] ?? []
-        );
+        $recommendations = $this->mistralAIService->getRecommendations($validatedData);
 
         return response()->json([
             'message' => 'Recommendations fetched successfully!',
             'activities' => $recommendations,
+        ]);
+    }
+
+    /**
+     * Generate an itinerary using AI based on user inputs
+     */
+    public function generateItinerary(Request $request)
+    {
+        $validatedData = $request->validate([
+            'destination' => 'required|string',
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
+            'budget' => 'required|numeric|min:0',
+            'interests' => 'nullable|array',
+            'with_children' => 'nullable|boolean',
+            'accommodation_type' => 'nullable|string',
+            'transportation_mode' => 'nullable|string',
+        ]);
+
+        // Combine inputs into a data payload
+        $itinerary = $this->mistralAIService->generateItinerary($validatedData);
+
+        return response()->json([
+            'message' => 'Itinerary generated successfully!',
+            'itinerary' => $itinerary,
         ]);
     }
 }

@@ -10,22 +10,16 @@ class DestinationDataCollector
 {
   private $googleApiKey;
   private $weatherApiKey;
-  private $isDevelopment;
 
   public function __construct()
   {
     $this->googleApiKey = config('services.google.places_api_key');
     $this->weatherApiKey = config('services.openweather.api_key');
-    $this->isDevelopment = config('app.env') === 'local';
   }
 
   public function collectDestinationData(string $placeName): array
   {
     try {
-      if ($this->isDevelopment) {
-        return $this->getDevelopmentData($placeName);
-      }
-
       // Get basic place data from Google Places API
       $placeData = $this->getGooglePlaceData($placeName);
 
@@ -150,42 +144,5 @@ class DestinationDataCollector
     // Logic to estimate typical duration based on number of attractions
     // and place type
     return 4; // Default duration
-  }
-
-  private function getDevelopmentData(string $placeName): array
-  {
-    // Predefined development data based on common destination types
-    $defaultData = [
-      'name' => $placeName,
-      'description' => "A wonderful destination with unique attractions",
-      'country' => 'Sample Country',
-      'city' => $placeName,
-      'culture_score' => rand(30, 50) / 10,
-      'nature_score' => rand(30, 50) / 10,
-      'adventure_score' => rand(30, 50) / 10,
-      'gastronomy_score' => rand(30, 50) / 10,
-      'budget_level' => rand(1, 5),
-      'best_season' => array_rand(range(1, 12), 4),
-      'typical_duration' => rand(3, 7),
-      'family_friendly' => (bool)rand(0, 1),
-      'solo_friendly' => true,
-      'couple_friendly' => true,
-    ];
-
-    // Adjust scores based on keywords in the place name
-    if (stripos($placeName, 'beach') !== false || stripos($placeName, 'island') !== false) {
-      $defaultData['nature_score'] = 4.5;
-      $defaultData['best_season'] = ['6', '7', '8', '9']; // Summer months
-    }
-    if (stripos($placeName, 'museum') !== false || stripos($placeName, 'historic') !== false) {
-      $defaultData['culture_score'] = 4.8;
-      $defaultData['nature_score'] = 2.0;
-    }
-    if (stripos($placeName, 'park') !== false || stripos($placeName, 'mountain') !== false) {
-      $defaultData['nature_score'] = 4.8;
-      $defaultData['adventure_score'] = 4.5;
-    }
-
-    return $defaultData;
   }
 }
